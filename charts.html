@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>深度數據分析 - HealthTrack+</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* --- 基礎設定 --- */
+        body { font-family: "微軟正黑體", sans-serif; background: #f0f2f5; margin: 0; color: #333; }
+        .navbar { background: #2c3e50; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; font-weight: bold; transition: color 0.3s; }
+        .navbar a:hover { color: #3498db; }
+        
+        .container { max-width: 900px; margin: 30px auto; padding: 20px; }
+
+        /* --- 頂部 KPI 摘要卡 --- */
+        .summary-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-bottom: 4px solid #ddd; }
+        .kpi-title { font-size: 14px; color: #7f8c8d; font-weight: bold; }
+        .kpi-value { font-size: 28px; font-weight: 800; color: #2c3e50; margin: 10px 0; }
+        .kpi-desc { font-size: 12px; color: #95a5a6; }
+
+        /* --- 圖表容器樣式 --- */
+        .chart-wrapper { background: white; padding: 25px; margin-bottom: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        
+        /* 標題與按鈕區 */
+        .chart-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-wrap: wrap; gap: 10px; }
+        h3 { margin: 0; display: flex; align-items: center; gap: 10px; }
+        
+        .btn-group { display: flex; gap: 8px; }
+        
+        /* 按鈕樣式 (統一風格) */
+        .btn-action { border: none; padding: 6px 15px; border-radius: 6px; cursor: pointer; color: white; font-size: 13px; font-weight: bold; transition: 0.2s; display: flex; align-items: center; gap: 5px; }
+        .btn-action:hover { opacity: 0.9; transform: translateY(-1px); }
+        
+        /* JPG 按鈕 (綠色) */
+        .btn-jpg { background-color: #27ae60; } 
+        /* PDF 按鈕 (紅色) */
+        .btn-pdf { background-color: #c0392b; }
+        /* CSV 按鈕 (橘色) */
+        .btn-csv { background-color: #e67e22; } 
+
+        /* --- 數據洞察 Insight Box --- */
+        .insight-box { 
+            background: #f8f9fa; 
+            border-left: 4px solid #3498db; 
+            padding: 15px; 
+            margin-top: 20px; 
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .insight-title { font-weight: bold; color: #2c3e50; display: block; margin-bottom: 5px; }
+
+        /* 手機適配 */
+        @media (max-width: 600px) { .summary-row { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar">
+        <div style="font-size:20px; font-weight:bold;">HealthTrack+</div>
+        <div>
+            <a href="{{ url_for('index') }}">首頁</a>
+            <a href="{{ url_for('record') }}">紀錄</a>
+            <a href="{{ url_for('plan') }}">計畫</a>
+            <a href="{{ url_for('charts') }}">圖表</a>
+            <a href="{{ url_for('profile') }}" style="color:#f1c40f;">⚙️ 設定</a>
+            <a href="{{ url_for('about') }}">關於</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <div class="summary-row">
+            <div class="kpi-card" style="border-color: #3498db;">
+                <div class="kpi-title">本週總飲水</div>
+                <div class="kpi-value"><span id="kpi-water">0</span> L</div>
+                <div class="kpi-desc">保持水分充足</div>
+            </div>
+            <div class="kpi-card" style="border-color: #e67e22;">
+                <div class="kpi-title">本週總運動</div>
+                <div class="kpi-value"><span id="kpi-sport">0</span> min</div>
+                <div class="kpi-desc">燃燒卡路里</div>
+            </div>
+            <div class="kpi-card" style="border-color: #9b59b6;">
+                <div class="kpi-title">平均睡眠</div>
+                <div class="kpi-value"><span id="kpi-sleep">0</span> hr</div>
+                <div class="kpi-desc">修復身體機能</div>
+            </div>
+        </div>
+
+        <div class="chart-wrapper">
+            <div class="chart-header">
+                <h3>🔗 深度分析：運動對睡眠的影響</h3>
+                <div class="btn-group">
+                    <button class="btn-action btn-jpg" onclick="downloadJPG('mixChart', '關聯分析報告')">📷 下載 JPG</button>
+                    <button class="btn-action btn-pdf" onclick="downloadPDF('mixChart', '關聯分析報告')">📄 下載 PDF</button>
+                </div>
+            </div>
+            <div style="height: 350px;">
+                <canvas id="mixChart"></canvas>
+            </div>
+            <div class="insight-box" style="border-color: #8e44ad;">
+                <span class="insight-title">💡 AI 分析觀點：</span>
+                此圖表將您的「運動時間」與「睡眠時長」進行對比。通常適度運動能幫助提升睡眠品質。
+                <br>觀察看看：<strong style="color:#e67e22">橘色柱子</strong>較高那天，您的<strong style="color:#9b59b6">紫色折線</strong>是否也比較高？
+            </div>
+        </div>
+
+        <div class="chart-wrapper">
+            <div class="chart-header">
+                <h3>💧 飲水趨勢分析</h3>
+                <div class="btn-group">
+                    <button class="btn-action btn-jpg" onclick="downloadJPG('waterChart', '飲水趨勢圖')">📷 下載 JPG</button>
+                    <button class="btn-action btn-csv" onclick="exportWaterCSV()">📊 下載 CSV</button>
+                </div>
+            </div>
+            <canvas id="waterChart"></canvas>
+            <div class="insight-box" id="water-insight">
+                </div>
+        </div>
+
+        <div class="chart-wrapper">
+            <div class="chart-header">
+                <h3>🏃 運動偏好分佈</h3>
+                <div class="btn-group">
+                    <button class="btn-action btn-jpg" onclick="downloadJPG('sportPieChart', '運動圓餅圖')">📷 下載 JPG</button>
+                </div>
+            </div>
+            <div style="width: 300px; margin: 0 auto;">
+                <canvas id="sportPieChart"></canvas>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- 1. 資料準備與處理 ---
+        
+        // 運動資料
+        const sportsLog = JSON.parse(localStorage.getItem('sportsLog')) || [];
+        let run=0, walk=0, gym=0, swim=0, yoga=0;
+        let totalSportTime = 0;
+        
+        sportsLog.forEach(i => { 
+            totalSportTime += i.time;
+            if(i.type==='跑步') run+=i.time; 
+            if(i.type==='走路') walk+=i.time; 
+            if(i.type==='重訓') gym+=i.time; 
+            if(i.type==='游泳') swim+=i.time; 
+            if(i.type==='瑜珈') yoga+=i.time;
+        });
+
+        // 飲水資料 (模擬)
+        const todayWater = parseInt(localStorage.getItem('waterAmount')) || 0;
+        const waterData = [1500, 1800, 2000, 1200, 2500, 2100, todayWater]; 
+        const labels = ['週一', '週二', '週三', '週四', '週五', '週六', '今天'];
+
+        // 睡眠資料 (模擬)
+        const currentSleep = parseFloat(localStorage.getItem('sleepHours')) || 0;
+        const sleepData = [6.5, 7.0, 8.0, 6.0, 7.5, 9.0, currentSleep];
+
+        // 運動每日數據 (模擬)
+        const sportDailyData = [30, 45, 60, 0, 40, 90, totalSportTime];
+
+        // --- 2. 更新頂部 KPI ---
+        const totalWaterWeek = waterData.reduce((a, b) => a + b, 0);
+        document.getElementById('kpi-water').innerText = (totalWaterWeek / 1000).toFixed(1);
+        document.getElementById('kpi-sport').innerText = totalSportTime;
+        
+        const validSleep = sleepData.filter(x => x > 0);
+        const avgSleep = validSleep.length ? (validSleep.reduce((a,b)=>a+b,0) / validSleep.length).toFixed(1) : 0;
+        document.getElementById('kpi-sleep').innerText = avgSleep;
+
+
+        // --- 3. 繪製圖表 ---
+
+        // A. 混合圖表 (Mixed Chart)
+        new Chart(document.getElementById('mixChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: '運動時間 (分鐘)',
+                        data: sportDailyData,
+                        backgroundColor: 'rgba(230, 126, 34, 0.6)',
+                        borderColor: '#e67e22',
+                        borderWidth: 1,
+                        yAxisID: 'y',
+                        order: 2
+                    },
+                    {
+                        label: '睡眠時長 (小時)',
+                        data: sleepData,
+                        borderColor: '#9b59b6',
+                        backgroundColor: '#9b59b6',
+                        type: 'line',
+                        tension: 0.4,
+                        yAxisID: 'y1',
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    y: { type: 'linear', display: true, position: 'left', title: { display: true, text: '運動 (分鐘)' } },
+                    y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: '睡眠 (小時)' } }
+                }
+            }
+        });
+
+        // B. 飲水折線圖
+        new Chart(document.getElementById('waterChart'), {
+            type: 'line',
+            data: { 
+                labels: labels, 
+                datasets: [{ 
+                    label: '飲水量 (ml)', 
+                    data: waterData, 
+                    borderColor: '#3498db', 
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.3 
+                }] 
+            }
+        });
+        
+        // 飲水分析文案
+        const avgWater = Math.round(totalWaterWeek / 7);
+        const maxWater = Math.max(...waterData);
+        document.getElementById('water-insight').innerHTML = `
+            <span class="insight-title">💡 飲水分析小結：</span>
+            本週平均每日飲水 <strong>${avgWater} ml</strong>。<br>
+            最高紀錄發生在<strong>${labels[waterData.indexOf(maxWater)]}</strong>，喝了 ${maxWater} ml。
+            ${todayWater < 2000 ? "⚠️ 今天水量偏低，建議再多喝一點喔！" : "✅ 今天的飲水量表現很棒！"}
+        `;
+
+        // C. 運動甜甜圈圖
+        new Chart(document.getElementById('sportPieChart'), {
+            type: 'doughnut',
+            data: { 
+                labels: ['跑步', '走路', '重訓', '游泳', '瑜珈'], 
+                datasets: [{ 
+                    data: [run, walk, gym, swim, yoga], 
+                    backgroundColor: ['#e74c3c', '#f1c40f', '#3498db', '#1abc9c', '#9b59b6'] 
+                }] 
+            }
+        });
+
+
+        // --- 4. 導出工具 (只保留 JPG 與 PDF/CSV) ---
+        
+        /**
+         * 專門下載 JPG 的函式
+         * 會建立一個暫時的白色畫布，解決透明變黑的問題
+         */
+        function downloadJPG(canvasId, fileName) {
+            const canvas = document.getElementById(canvasId);
+            const link = document.createElement('a');
+            
+            // 建立暫存 Canvas
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = canvas.width;
+            newCanvas.height = canvas.height;
+            const ctx = newCanvas.getContext('2d');
+            
+            // 1. 填滿白色背景
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, newCanvas.width, newCanvas.height);
+            
+            // 2. 繪製原本的圖表
+            ctx.drawImage(canvas, 0, 0);
+            
+            // 3. 下載
+            link.download = fileName + '.jpg';
+            link.href = newCanvas.toDataURL('image/jpeg', 0.9); // 0.9 是品質
+            link.click();
+        }
+
+        function downloadPDF(canvasId, fileName) {
+            const { jsPDF } = window.jspdf;
+            const canvas = document.getElementById(canvasId);
+            const doc = new jsPDF();
+            
+            // 這裡也要先轉成白底 JPG 數據，再放入 PDF，不然 PDF 裡透明背景有時也會有問題
+            const newCanvas = document.createElement('canvas');
+            newCanvas.width = canvas.width; newCanvas.height = canvas.height;
+            const ctx = newCanvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width,canvas.height);
+            ctx.drawImage(canvas,0,0);
+            
+            const imgData = newCanvas.toDataURL('image/jpeg', 0.9);
+            const props = doc.getImageProperties(imgData);
+            const w = 180; 
+            const h = (props.height * w) / props.width;
+            
+            doc.setFontSize(20); 
+            doc.text("Analysis Report", 10, 20);
+            doc.addImage(imgData, 'JPEG', 15, 30, w, h);
+            doc.save(fileName + '.pdf');
+        }
+
+        function exportWaterCSV() {
+            let csv = "\uFEFF日期,飲水量\n";
+            labels.forEach((l, i) => csv += `${l},${waterData[i]}\n`);
+            const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+            const link = document.createElement("a");
+            link.href = URL.createObjectURL(blob);
+            link.download = "飲水報表.csv";
+            link.click();
+        }
+    </script>
+</body>
+</html>

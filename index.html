@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>首頁 - 健康儀表板</title>
+    <style>
+        /* --- 全局設定 --- */
+        body { font-family: "微軟正黑體", "Segoe UI", sans-serif; background: #f4f7f6; margin: 0; color: #333; }
+        
+        /* --- 導覽列 --- */
+        .navbar { background: #2c3e50; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; font-weight: bold; transition: color 0.3s; }
+        .navbar a:hover { color: #3498db; }
+
+        /* --- Hero 區塊 (頂部歡迎區) --- */
+        .hero { 
+            background: linear-gradient(135deg, #2c3e50 0%, #4ca1af 100%); 
+            color: white; 
+            padding: 50px 20px 80px; /* 底部留多一點空間給卡片浮動 */
+            text-align: center; 
+            border-bottom-right-radius: 50px; 
+            border-bottom-left-radius: 50px;
+            box-shadow: 0 10px 20px rgba(44, 62, 80, 0.2);
+            margin-bottom: 40px;
+        }
+        .hero h1 { margin: 0; font-size: 2.2em; letter-spacing: 1px; }
+        
+        /* --- ✨ AI 訊息框樣式 --- */
+        .ai-box {
+            background: rgba(255, 255, 255, 0.15); /* 半透明背景 */
+            backdrop-filter: blur(5px); /* 毛玻璃特效 */
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 15px 25px;
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 25px;
+            max-width: 600px;
+            text-align: left;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            animation: float 3s ease-in-out infinite;
+        }
+        .ai-avatar { font-size: 30px; }
+        .ai-text { font-size: 1.05em; line-height: 1.5; font-weight: 500; color: #fff; }
+        
+        .btn-cta { 
+            display: inline-block; 
+            background: #e74c3c; 
+            color: white; 
+            padding: 10px 25px; 
+            border-radius: 50px; 
+            text-decoration: none; 
+            margin-top: 25px; 
+            font-weight: bold;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.4);
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn-cta:hover { transform: scale(1.05); background: #c0392b; }
+
+        /* --- 儀表板容器 --- */
+        .container { 
+            max-width: 900px; 
+            margin: -60px auto 50px; 
+            padding: 0 20px; 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+            gap: 20px; 
+        }
+
+        /* --- 數據卡片 --- */
+        .stat-card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 15px; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05); 
+            text-align: center; 
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.1); }
+        
+        .card-icon { font-size: 40px; margin-bottom: 10px; display: block; }
+        .card-title { font-size: 16px; color: #7f8c8d; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-number { font-size: 42px; font-weight: 800; color: #2c3e50; margin: 10px 0; }
+        .unit { font-size: 16px; color: #95a5a6; font-weight: normal; }
+
+        /* --- 進度條與標籤 --- */
+        .progress-bg { background: #ecf0f1; height: 10px; border-radius: 10px; overflow: hidden; margin-top: 15px; }
+        .progress-bar { background: #3498db; height: 100%; width: 0%; transition: width 1s ease-in-out; border-radius: 10px; }
+        .goal-text { font-size: 12px; color: #bdc3c7; margin-top: 5px; }
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 14px; font-weight: bold; color: white; background: #95a5a6; margin-top: 5px; }
+        .highlight-bar { height: 4px; width: 40px; background: #ddd; margin: 0 auto 15px; border-radius: 2px; }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+    </style>
+</head>
+<body>
+    
+    <nav class="navbar">
+        <div style="font-size:20px; font-weight:bold;">HealthTrack+</div>
+        <div>
+            <a href="{{ url_for('index') }}">首頁</a>
+            <a href="{{ url_for('record') }}">紀錄</a>
+            <a href="{{ url_for('plan') }}">計畫</a>
+            <a href="{{ url_for('charts') }}">圖表</a>
+            <a href="{{ url_for('profile') }}" style="color:#f1c40f;">⚙️ 設定</a>
+            <a href="{{ url_for('about') }}">關於</a>
+        </div>
+    </nav>
+
+    <div class="hero">
+        <h1 id="welcome-msg">👋 歡迎回來</h1>
+        
+        <div class="ai-box">
+            <div class="ai-avatar">🤖</div>
+            <div class="ai-text" id="ai-message">正在分析您的健康數據...</div>
+        </div>
+        <br>
+        <a href="{{ url_for('record') }}" class="btn-cta">➕ 紀錄一筆</a>
+    </div>
+
+    <div class="container">
+        <div class="stat-card">
+            <div class="highlight-bar" style="background:#3498db;"></div>
+            <span class="card-icon">💧</span>
+            <div class="card-title">今日飲水</div>
+            <div class="stat-number"><span id="water-val">0</span> <span class="unit">ml</span></div>
+            <div class="progress-bg"><div id="water-bar" class="progress-bar"></div></div>
+            <div class="goal-text">目標：2000 ml</div>
+            <div id="water-msg" style="color:#27ae60; font-weight:bold; margin-top:5px; height:20px;"></div>
+        </div>
+
+        <div class="stat-card">
+            <div class="highlight-bar" style="background:#e67e22;"></div>
+            <span class="card-icon">🏃</span>
+            <div class="card-title">今日運動</div>
+            <div class="stat-number"><span id="sport-val">0</span> <span class="unit">min</span></div>
+            <div style="color:#7f8c8d; font-size:14px;">動起來，流點汗吧！</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="highlight-bar" style="background:#9b59b6;"></div>
+            <span class="card-icon">😴</span>
+            <div class="card-title">昨日睡眠</div>
+            <div class="stat-number"><span id="sleep-val">0</span> <span class="unit">hr</span></div>
+            <div style="color:#7f8c8d; font-size:14px;">充足睡眠修復大腦</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="highlight-bar" style="background:#2ecc71;"></div>
+            <span class="card-icon">⚖️</span>
+            <div class="card-title">目前 BMI</div>
+            <div class="stat-number"><span id="bmi-val">--</span></div>
+            <div id="bmi-badge" class="status-badge">未計算</div>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // --- 1. 讀取個人設定與目標 ---
+            const targetWater = parseInt(localStorage.getItem('goalWater')) || 2000;
+            const targetSleep = parseFloat(localStorage.getItem('goalSleep')) || 8;
+            const userName = localStorage.getItem('userName') || "";
+
+            // 更新歡迎標題
+            if(userName) document.getElementById('welcome-msg').innerText = `👋 歡迎回來，${userName}`;
+
+            // --- 2. 讀取數據 ---
+            const water = parseInt(localStorage.getItem('waterAmount')) || 0;
+            const sleep = parseFloat(localStorage.getItem('sleepHours')) || 0;
+            const bmi = parseFloat(localStorage.getItem('userBMI'));
+            
+            const sportsLog = JSON.parse(localStorage.getItem('sportsLog')) || [];
+            let totalTime = 0;
+            sportsLog.forEach(item => totalTime += item.time);
+
+            // --- 3. 更新卡片 UI ---
+            document.getElementById('water-val').innerText = water;
+            
+            // 使用自訂目標計算進度
+            const pct = Math.min((water / targetWater) * 100, 100);
+            document.getElementById('water-bar').style.width = pct + "%";
+            document.querySelector('.goal-text').innerText = `目標：${targetWater} ml`; // 顯示設定的目標
+
+            if(water >= targetWater) {
+                document.getElementById('water-msg').innerText = "🎉 達成目標！太棒了";
+                document.getElementById('water-bar').style.backgroundColor = "#27ae60";
+            }
+
+            document.getElementById('sleep-val').innerText = sleep;
+            document.getElementById('sport-val').innerText = totalTime;
+
+            const bmiValEl = document.getElementById('bmi-val');
+            const bmiBadge = document.getElementById('bmi-badge');
+            if (bmi) {
+                bmiValEl.innerText = bmi;
+                if (bmi < 18.5) { bmiBadge.innerText = "過輕"; bmiBadge.style.backgroundColor = "#f1c40f"; }
+                else if (bmi < 24) { bmiBadge.innerText = "健康標準"; bmiBadge.style.backgroundColor = "#27ae60"; }
+                else if (bmi < 27) { bmiBadge.innerText = "過重"; bmiBadge.style.backgroundColor = "#e67e22"; }
+                else { bmiBadge.innerText = "肥胖"; bmiBadge.style.backgroundColor = "#e74c3c"; }
+            } else {
+                bmiValEl.innerText = "--"; bmiBadge.style.display = "none";
+            }
+
+            // --- 4. 🤖 AI 智能分析 (加入目標判斷) ---
+            const aiMsg = document.getElementById('ai-message');
+            const hour = new Date().getHours();
+            let message = "";
+
+            if (water === 0 && totalTime === 0 && sleep === 0) {
+                message = userName ? `早安 ${userName}！新的一天開始了，記得先喝杯溫開水喔！☀️` : "早安！新的一天開始了，記得先喝杯溫開水！☀️";
+            } 
+            else if (water >= targetWater && totalTime >= 30) {
+                message = "太強了！🤩 飲水和運動都達標，你是今天的健康冠軍！";
+            }
+            else if (sleep > 0 && sleep < targetSleep) {
+                message = `昨晚睡不到 ${targetSleep} 小時？🥱 今天盡量找時間休息一下，別累壞了。`;
+            }
+            else if (water < (targetWater / 2) && hour >= 15) {
+                message = "下午囉！離飲水目標還有一段距離，趕快補水！💧";
+            }
+            else if (totalTime === 0 && hour >= 18) {
+                message = "忙了一整天辛苦了！如果還有體力，不妨做個 15 分鐘伸展或散步！🧘";
+            }
+            else {
+                message = "健康的生活是由每天的小習慣累積的。你今天做得很好，我們明天繼續努力！✨";
+            }
+
+            // 打字機特效
+            let i = 0;
+            aiMsg.innerHTML = "";
+            function typeWriter() {
+                if (i < message.length) {
+                    aiMsg.innerHTML += message.charAt(i);
+                    i++;
+                    setTimeout(typeWriter, 50);
+                }
+            }
+            typeWriter();
+        }
+    </script>
+</body>
+</html>

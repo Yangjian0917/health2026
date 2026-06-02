@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日紀錄 - 健康追蹤</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    
+    <style>
+        /* --- 全局基礎設定 --- */
+        body { font-family: "微軟正黑體", sans-serif; background: #f4f7f6; margin: 0; color: #333; }
+        
+        .navbar { background: #2c3e50; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; color: white; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .navbar a { color: white; text-decoration: none; margin-left: 20px; font-weight: bold; transition: color 0.3s; }
+        .navbar a:hover { color: #3498db; }
+
+        .container { max-width: 900px; margin: 40px auto; padding: 0 20px; display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 25px; }
+
+        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); transition: transform 0.2s; border-top: 5px solid transparent; }
+        .card:hover { transform: translateY(-3px); }
+        h2 { margin-top: 0; color: #2c3e50; font-size: 1.5em; display: flex; align-items: center; gap: 10px; }
+        label { display: block; margin: 15px 0 8px; font-weight: bold; color: #7f8c8d; font-size: 0.9em; letter-spacing: 0.5px; }
+        
+        input, select { width: 100%; padding: 12px 15px; border: 2px solid #ecf0f1; border-radius: 10px; box-sizing: border-box; font-size: 16px; transition: border-color 0.3s; background: #fafafa; }
+        input:focus, select:focus { border-color: #3498db; outline: none; background: white; }
+
+        .btn-submit { width: 100%; padding: 12px; border: none; border-radius: 10px; color: white; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; transition: opacity 0.2s, transform 0.1s; }
+        .btn-submit:active { transform: scale(0.98); }
+
+        .card-water { border-top-color: #3498db; text-align: center; position: relative; overflow: hidden; }
+        .water-stat { font-size: 48px; font-weight: 800; color: #2980b9; margin: 10px 0; transition: color 0.3s; }
+        .water-unit { font-size: 18px; color: #7f8c8d; font-weight: normal; }
+        
+        /* 達成目標後的文字顏色 */
+        .water-success { color: #27ae60 !important; }
+
+        .btn-water-big { background: linear-gradient(135deg, #3498db, #2980b9); color: white; border: none; width: 80px; height: 80px; border-radius: 50%; font-size: 24px; cursor: pointer; box-shadow: 0 5px 15px rgba(52, 152, 219, 0.4); transition: transform 0.2s, box-shadow 0.2s; display: flex; justify-content: center; align-items: center; margin: 10px auto; }
+        .btn-water-big:hover { transform: scale(1.1) rotate(10deg); box-shadow: 0 8px 20px rgba(52, 152, 219, 0.6); }
+        .btn-water-big:active { transform: scale(0.95); }
+
+        .card-sport { border-top-color: #e67e22; }
+        .btn-sport { background-color: #e67e22; }
+        .btn-sport:hover { background-color: #d35400; }
+
+        .card-sleep { border-top-color: #9b59b6; }
+        .btn-sleep { background-color: #9b59b6; }
+        .btn-sleep:hover { background-color: #8e44ad; }
+        #sleep-feedback { margin-top: 15px; padding: 10px; background: #f3e5f5; border-radius: 8px; color: #8e44ad; text-align: center; display: none; }
+
+        .card-bmi { border-top-color: #2ecc71; }
+        .btn-bmi { background-color: #2ecc71; }
+        .btn-bmi:hover { background-color: #27ae60; }
+        #bmi-result { margin-top: 20px; padding: 15px; background: #e8f6f3; border-radius: 10px; display: none; animation: fadeIn 0.5s; }
+        
+        .btn-delete { background: #c0392b; margin-top: 40px; grid-column: 1 / -1; max-width: 300px; margin-left: auto; margin-right: auto; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div style="font-size:20px; font-weight:bold;">HealthTrack+</div>
+        <div>
+            <a href="{{ url_for('index') }}">首頁</a>
+            <a href="{{ url_for('record') }}">紀錄</a>
+            <a href="{{ url_for('plan') }}">計畫</a>
+            <a href="{{ url_for('charts') }}">圖表</a>
+            <a href="{{ url_for('profile') }}" style="color:#f1c40f;">⚙️ 設定</a>
+            <a href="{{ url_for('about') }}">關於</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <div class="card card-water">
+            <h2>💧 快速補水</h2>
+            <div style="color:#7f8c8d; margin-bottom:10px;">點擊按鈕增加 250ml</div>
+            <button class="btn-water-big" onclick="addWater()">+</button>
+            <div class="water-stat" id="water-stat-box">
+                <span id="water-display">0</span>
+                <span class="water-unit">ml</span>
+            </div>
+            <div style="font-size:14px; color:#bdc3c7;" id="goal-hint">今日累積總量</div>
+        </div>
+
+        <div class="card card-sport">
+            <h2>🏃 運動紀錄</h2>
+            <label>運動類型</label>
+            <select id="sport-type">
+                <option value="跑步">🏃 跑步</option>
+                <option value="重訓">🏋️ 重訓</option>
+                <option value="走路">🚶 走路</option>
+                <option value="游泳">🏊 游泳</option>
+                <option value="瑜珈">🧘 瑜珈</option>
+            </select>
+            <label>運動時間 (分鐘)</label>
+            <input type="number" id="sport-time" placeholder="例如: 30">
+            <button class="btn-submit btn-sport" onclick="saveSport()">儲存運動紀錄</button>
+        </div>
+
+        <div class="card card-sleep">
+            <h2>😴 睡眠追蹤</h2>
+            <label>昨晚睡了多久？(小時)</label>
+            <input type="number" id="sleep-hours" placeholder="例如: 7.5" step="0.5">
+            <button class="btn-submit btn-sleep" onclick="saveSleep()">紀錄睡眠</button>
+            <div id="sleep-feedback"></div>
+        </div>
+
+        <div class="card card-bmi">
+            <h2>⚖️ 身體數據</h2>
+            <label>身高 (cm)</label>
+            <input type="number" id="height" placeholder="例如: 175">
+            <label>體重 (kg)</label>
+            <input type="number" id="weight" placeholder="例如: 70">
+            <button class="btn-submit btn-bmi" onclick="calculateBMI()">更新 BMI 數據</button>
+            <div id="bmi-result">
+                <div style="font-size:14px; color:#7f8c8d;">您的 BMI 指數</div>
+                <div style="font-size:32px; font-weight:bold; color:#2c3e50; margin:5px 0;" id="bmi-value">--</div>
+                <div style="font-weight:bold; padding:5px 10px; border-radius:20px; display:inline-block; color:white;" id="bmi-status-tag">--</div>
+            </div>
+        </div>
+
+        <button class="btn-submit btn-delete" onclick="clearData()">⚠️ 清除所有紀錄 (重置)</button>
+    </div>
+
+    <script>
+        // --- 初始化資料 ---
+        let currentWater = parseInt(localStorage.getItem('waterAmount')) || 0;
+        
+        // 讀取設定的目標，如果沒有就預設 2000
+        const goalWater = parseInt(localStorage.getItem('goalWater')) || 2000;
+        
+        updateWaterDisplay(); // 更新介面
+
+        if(localStorage.getItem('userHeight')) document.getElementById('height').value = localStorage.getItem('userHeight');
+        if(localStorage.getItem('userWeight')) document.getElementById('weight').value = localStorage.getItem('userWeight');
+        if(localStorage.getItem('userBMI')) showBMIResult(localStorage.getItem('userBMI'));
+
+        // 請求通知權限
+        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+            Notification.requestPermission();
+        }
+
+        // --- 功能函式區 ---
+
+        function addWater() {
+            const previousWater = currentWater; // 紀錄加水前的數值
+            currentWater += 250;
+            localStorage.setItem('waterAmount', currentWater);
+            
+            // 數字跳動特效
+            const display = document.getElementById('water-display');
+            display.style.transform = "scale(1.2)";
+            setTimeout(() => display.style.transform = "scale(1)", 200);
+
+            updateWaterDisplay();
+
+            // ✨ 判斷是否「剛好」跨過目標門檻 (避免重複觸發)
+            if (previousWater < goalWater && currentWater >= goalWater) {
+                celebrateGoal(); // 觸發特效
+            }
+        }
+
+        // 更新飲水介面顯示
+        function updateWaterDisplay() {
+            const display = document.getElementById('water-display');
+            const hint = document.getElementById('goal-hint');
+            const statBox = document.getElementById('water-stat-box');
+
+            display.innerText = currentWater;
+
+            // 如果達標，改變文字顏色和提示
+            if (currentWater >= goalWater) {
+                statBox.classList.add('water-success'); // 變綠色
+                hint.innerHTML = "🎉 <strong>已達成今日目標！</strong>";
+                hint.style.color = "#27ae60";
+            } else {
+                statBox.classList.remove('water-success');
+                hint.innerText = `目標：${goalWater} ml`;
+                hint.style.color = "#bdc3c7";
+            }
+        }
+
+        // 🎉 慶祝特效函式
+        function celebrateGoal() {
+            // 1. 發送彩帶特效 (Confetti)
+            confetti({
+                particleCount: 150,
+                spread: 70,
+                origin: { y: 0.6 } // 從畫面中間偏下噴發
+            });
+
+            // 2. 發送瀏覽器通知
+            if (Notification.permission === "granted") {
+                new Notification("恭喜達標！🎉", {
+                    body: `您已喝足 ${currentWater}ml 的水，身體感謝您！`,
+                    icon: "https://cdn-icons-png.flaticon.com/512/3105/3105807.png" // 水滴圖示
+                });
+            } else {
+                // 如果沒開通知，就跳個 Alert 鼓勵一下
+                setTimeout(() => alert("🎉 恭喜！您已達成今日飲水目標！"), 500);
+            }
+        }
+
+        function saveSport() {
+            const type = document.getElementById('sport-type').value;
+            const time = parseInt(document.getElementById('sport-time').value);
+            if (!time) { alert("請輸入運動時間喔！"); return; }
+            let sportsLog = JSON.parse(localStorage.getItem('sportsLog')) || [];
+            sportsLog.push({ type: type, time: time, date: new Date().toLocaleDateString() });
+            localStorage.setItem('sportsLog', JSON.stringify(sportsLog));
+            document.getElementById('sport-time').value = ''; 
+            alert(`已紀錄：${type} ${time} 分鐘 💪`);
+        }
+
+        function saveSleep() {
+            const hours = parseFloat(document.getElementById('sleep-hours').value);
+            if (!hours) return;
+            localStorage.setItem('sleepHours', hours);
+            const feedback = document.getElementById('sleep-feedback');
+            feedback.style.display = "block";
+            if (hours >= 7) {
+                feedback.innerText = "✅ 睡眠充足，精神飽滿！";
+                feedback.style.color = "#27ae60";
+                feedback.style.background = "#e9f7ef";
+            } else {
+                feedback.innerText = "⚠️ 睡眠稍嫌不足，今晚早點睡吧！";
+                feedback.style.color = "#c0392b";
+                feedback.style.background = "#f9ebea";
+            }
+        }
+
+        function calculateBMI() {
+            const h = parseFloat(document.getElementById('height').value);
+            const w = parseFloat(document.getElementById('weight').value);
+            if (!h || !w) { alert("請輸入身高與體重"); return; }
+            localStorage.setItem('userHeight', h);
+            localStorage.setItem('userWeight', w);
+            const bmi = (w / ((h/100) * (h/100))).toFixed(1);
+            localStorage.setItem('userBMI', bmi);
+            showBMIResult(bmi);
+            alert("BMI 更新成功！");
+        }
+
+        function showBMIResult(bmi) {
+            const resultBox = document.getElementById('bmi-result');
+            const valText = document.getElementById('bmi-value');
+            const tag = document.getElementById('bmi-status-tag');
+            resultBox.style.display = "block";
+            valText.innerText = bmi;
+            if(bmi < 18.5) { tag.innerText = "過輕"; tag.style.backgroundColor = "#f1c40f"; } 
+            else if(bmi < 24) { tag.innerText = "健康標準"; tag.style.backgroundColor = "#27ae60"; } 
+            else if(bmi < 27) { tag.innerText = "過重"; tag.style.backgroundColor = "#e67e22"; } 
+            else { tag.innerText = "肥胖"; tag.style.backgroundColor = "#c0392b"; }
+        }
+
+        function clearData() { 
+            if(confirm("⚠️ 確定要刪除所有紀錄嗎？這將無法復原。")) { 
+                localStorage.clear(); 
+                location.reload(); 
+            } 
+        }
+    </script>
+</body>
+</html>
